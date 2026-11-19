@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scanner Control — Equipment Handover</title>
+<style>
+:root{--bg:#0d0f16;--navy:#0e1017;--surface:#191c25;--surface2:#21242f;--line:#2c3040;--muted:#a6abba;--accent:#e71d31;--accent2:#ff5e6c;--ok:#3ecf8e;--warn:#ffb020;--danger:#702532;--text:#f2f3f7}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.4 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+button,input,select{font:inherit}
+.app{display:flex;flex-direction:column;height:100vh;min-height:560px}
+header{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--navy);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;min-width:220px;flex:1}
+.brand h1{margin:0;font-size:22px;letter-spacing:.08em;font-weight:800}
+.brand h1 b{color:var(--accent)}
+.brand small{color:var(--muted);letter-spacing:.18em;font-size:11px}
+.hbtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:0;border-radius:6px;padding:9px 14px;color:#fff;background:var(--surface2);cursor:pointer;font-weight:700;font-size:12px;letter-spacing:.06em;white-space:nowrap}
+.btn:hover{filter:brightness(1.18)}
+.btn.primary{background:var(--accent)}
+.btn.danger{background:var(--danger)}
+.btn.ghost{background:transparent;border:1px solid var(--line)}
+.btn:disabled{opacity:.45;cursor:default}
+.store{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:var(--surface);font-size:12px;font-weight:700;letter-spacing:.04em}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.store.ok .dot{background:var(--ok)} .store.warn .dot{background:var(--warn)} .store.bad .dot{background:var(--accent)}
+.scanbar{padding:14px 20px;background:var(--surface);border-bottom:1px solid var(--line)}
+.scanrow1{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.live{color:#ff4b5d;font-weight:800;letter-spacing:.12em;font-size:12px}
+.hint{font-weight:700;font-size:13px}
+.hint.wait{color:#ff7885}
+.scanrow2{display:flex;gap:10px;flex-wrap:wrap}
+#scan{flex:1;min-width:220px;font-size:22px;font-weight:700;padding:12px 16px;border-radius:8px;border:2px solid var(--accent);background:var(--bg);color:#fff;letter-spacing:.05em;outline:none}
+#scan:focus{box-shadow:0 0 0 4px rgba(231,29,49,.25)}
+select,input[type=text],input[type=date]{background:var(--bg);color:#fff;border:1px solid var(--line);border-radius:6px;padding:9px 10px;outline:none}
+select:focus,input:focus{border-color:var(--accent2)}
+input[type=date]{color-scheme:dark}
+#status{margin-top:10px;padding:8px 12px;border-radius:6px;background:var(--bg);font-weight:600;min-height:36px;font-family:Consolas,"Cascadia Mono",monospace;font-size:13px}
+#status.warn{color:#ff97a1}
+main{flex:1;display:grid;grid-template-columns:minmax(280px,30%) 1fr;gap:14px;padding:14px 20px;min-height:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.ph{padding:12px 14px;border-bottom:1px solid var(--line)}
+.ph .t{display:flex;justify-content:space-between;align-items:center;font-weight:800;letter-spacing:.08em}
+.count{font-size:26px;color:var(--accent2);font-weight:800}
+.sub{color:var(--muted);font-size:12px}
+.loan{margin-top:6px;font-size:12px;font-weight:700;color:#ffd0d5}
+.tablewrap{flex:1;overflow:auto;min-height:120px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{position:sticky;top:0;background:var(--surface2);text-align:left;padding:8px 10px;font-size:11px;letter-spacing:.08em;color:var(--muted);z-index:1}
+td{padding:7px 10px;border-bottom:1px solid #232634;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px}
+tbody tr:nth-child(even){background:#1c1f29}
+tr.sel td{background:#4a1820 !important}
+.selectable tbody tr{cursor:pointer}
+.selectable tbody tr:hover td{background:#262a37}
+.empty{padding:28px;text-align:center;color:var(--muted);white-space:pre-line;font-weight:600}
+.pf{padding:12px 14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.pf .lbl{font-weight:800;color:var(--accent2);font-size:12px;letter-spacing:.08em}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row > input[type=text]{flex:1;min-width:120px}
+.tabs{display:flex;gap:2px;background:var(--navy);padding:6px 6px 0;overflow-x:auto}
+.tab{padding:10px 14px;border:0;background:transparent;color:var(--muted);font-weight:700;cursor:pointer;border-radius:6px 6px 0 0;white-space:nowrap;letter-spacing:.04em}
+.tab.on{background:var(--surface);color:#fff;box-shadow:inset 0 2px 0 var(--accent)}
+.view{display:none;flex:1;flex-direction:column;min-height:0}
+.view.on{display:flex}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.toolbar .title{font-weight:800;letter-spacing:.08em;margin-right:auto}
+.edit{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;padding:10px 14px;border-top:1px solid var(--line);align-items:center}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.05em;background:var(--surface2)}
+.b-loan{background:#5a1f28;color:#ffd0d5}.b-ok{background:#163b2c;color:#9ff0c8}.b-rem{background:#3a3a3a;color:#bbb}.b-carry{background:#5a4210;color:#ffe2a3}
+footer{padding:6px 20px 10px;color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal-bg.on{display:flex}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:12px;max-width:480px;width:100%;padding:20px}
+.modal h3{margin:0 0 10px;letter-spacing:.04em}
+.modal p{white-space:pre-line;color:#dfe1e8;margin:0 0 18px}
+.modal .row{justify-content:flex-end}
+.banner{display:none;padding:8px 20px;background:#4a3508;color:#ffe2a3;font-weight:600;font-size:13px}
+.banner.on{display:block}
+@media (max-width:900px){main{grid-template-columns:1fr;overflow:auto}.panel{min-height:320px}.app{height:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><h1>SCANNER <b>CONTROL</b></h1><small>WAREHOUSE EQUIPMENT  /  HANDOVER</small></div>
+    <div class="store" id="storeState" title="Where data is saved"><span class="dot"></span><span id="storeText">Starting…</span></div>
+    <div class="hbtns">
+      <button class="btn primary" id="btnFolder" title="Choose Documents. The app creates 'Barcode Scanner Records' inside it.">CONNECT FOLDER</button>
+      <button class="btn" id="btnExcel">EXCEL</button>
+      <button class="btn" id="btnBackup">BACKUP JSON</button>
+      <button class="btn" id="btnImport">IMPORT JSON</button>
+      <button class="btn ghost" id="btnFull">FULL SCREEN</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <section class="scanbar">
+    <div class="scanrow1"><span class="live">●  LIVE BARCODE INPUT</span><span class="hint" id="hint"></span><span class="sub" id="today"></span></div>
+    <div class="scanrow2">
+      <input id="scan" type="text" autocomplete="off" spellcheck="false" placeholder="SCAN BARCODE HERE  ↵" maxlength="256">
+      <select id="newType" title="Type for a NEW device on first checkout"><option>Scanner</option><option>Radio</option><option>Other</option></select>
+      <button class="btn primary" id="btnProcess">PROCESS SCAN</button>
+      <button class="btn danger" id="btnCancel">CANCEL</button>
+    </div>
+    <div id="status"></div>
+  </section>
+  <main>
+    <section class="panel">
+      <div class="ph">
+        <div class="t"><span>AVAILABLE DEVICES</span><span class="count" id="availCount">0</span></div>
+        <div class="sub">Not handed out · Removed on check-out</div>
+        <div class="loan" id="loanLine"></div>
+      </div>
+      <div class="tablewrap" id="availWrap"></div>
+      <div class="pf">
+        <span class="lbl">+  REGISTER DEVICE (OPTIONAL)</span>
+        <div class="row"><input type="text" id="regCode" placeholder="Device barcode" maxlength="256">
+          <select id="regType"><option>Scanner</option><option>Radio</option><option>Other</option></select>
+          <button class="btn primary" id="btnReg">ADD DEVICE</button></div>
+      </div>
+    </section>
+    <section class="panel">
+      <nav class="tabs" id="tabs">
+        <button class="tab on" data-v="vEmp">Employees</button>
+        <button class="tab" data-v="vMgmt">Employee Management</button>
+        <button class="tab" data-v="vDev">Devices</button>
+        <button class="tab" data-v="vOut">Check-Out History</button>
+        <button class="tab" data-v="vIn">Check-In History</button>
+      </nav>
+      <div class="view on" id="vEmp">
+        <div class="toolbar"><span class="title">EMPLOYEE REGISTRY</span>
+          <input type="text" id="empCode" placeholder="Employee barcode" maxlength="256">
+          <input type="text" id="empName" placeholder="Employee name" maxlength="400">
+          <button class="btn primary" id="btnEmpSave">SAVE EMPLOYEE</button></div>
+        <div class="tablewrap" id="empWrap"></div>
+      </div>
+      <div class="view" id="vMgmt">
+        <div class="toolbar"><span class="title">EMPLOYEE MANAGEMENT</span><span class="sub">Select an employee to edit, remove or restore. Transaction history is retained.</span></div>
+        <div class="tablewrap selectable" id="mgmtWrap"></div>
+        <div class="edit">
+          <input type="text" id="editCode" placeholder="Employee barcode" maxlength="256">
+          <input type="text" id="editName" placeholder="Employee name" maxlength="400">
+          <button class="btn primary" id="btnEmpUpd">SAVE CHANGES</button>
+          <button class="btn danger" id="btnEmpRem">REMOVE</button>
+          <button class="btn" id="btnEmpRes">RESTORE</button>
+        </div>
+      </div>
+      <div class="view" id="vDev">
+        <div class="toolbar"><span class="title">DEVICE MANAGEMENT</span><span class="sub">Select a device to correct its code, change its type, remove or restore it.</span></div>
+        <div class="tablewrap selectable" id="devWrap"></div>
+        <div class="edit">
+          <input type="text" id="corrCode" placeholder="Correct barcode" maxlength="256">
+          <button class="btn primary" id="btnCorr">CORRECT CODE</button>
+          <button class="btn danger" id="btnDevRem">REMOVE</button>
+          <button class="btn" id="btnDevRes">RESTORE</button>
+          <select id="editType"><option>Scanner</option><option>Radio</option><option>Other</option></select>
+          <button class="btn primary" id="btnType">CHANGE TYPE</button>
+        </div>
+      </div>
+      <div class="view" id="vOut">
+        <div class="toolbar"><span class="title">CHECK-OUT HISTORY</span><input type="date" id="outDate"><button class="btn" id="outToday">TODAY</button></div>
+        <div class="tablewrap" id="outWrap"></div>
+      </div>
+      <div class="view" id="vIn">
+        <div class="toolbar"><span class="title">CHECK-IN HISTORY</span><input type="date" id="inDate"><button class="btn" id="inToday">TODAY</button></div>
+        <div class="tablewrap" id="inWrap"></div>
+      </div>
+    </section>
+  </main>
+  <footer><span>Data stays on this computer: in this browser and in the folder you connect. Nothing is sent to any server.</span><span>Web edition · records.json compatible with desktop v7.5.1</span></footer>
+</div>
+<div class="modal-bg" id="modalBg"><div class="modal"><h3 id="mTitle"></h3><p id="mText"></p><div class="row" id="mBtns"></div></div></div>
+<script>
+/* Equipment Control — core logic (port of the C# v7.5.1 Storage / DeviceAdministration /
+   EmployeeAdministration / HistoryQueries / ExcelExporter). No DOM access in this file. */
+(function (global) {
+  'use strict';
+  const TYPES = ['Scanner', 'Radio', 'Other'];
+  const TZ = 'Europe/Amsterdam';
+
+  // ---------- helpers ----------
+  const nowIso = () => new Date().toISOString();
+  const ms = iso => Date.parse(iso);
+  function newId() {
+    try { if (global.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, ''); } catch (e) { }
+    const b = new Uint8Array(16);
+    try { crypto.getRandomValues(b); } catch (e) { for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256); }
+    return Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+  }
+  const hasControl = s => /[\u0000-\u001F\u007F-\u009F]/.test(s);
+  const validCode = c => typeof c === 'string' && c.length >= 1 && c.length <= 128 && !hasControl(c);
+  class UserError extends Error { }
+  const fail = m => { throw new UserError(m); };
+
+  // Amsterdam local time parts (DST-correct, same as C# ToAmsterdam).
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+  });
+  function amsParts(iso) {
+    const p = {}; for (const x of fmt.formatToParts(new Date(iso))) p[x.type] = x.value;
+    return { y: +p.year, mo: +p.month, d: +p.day, h: +p.hour, mi: +p.minute, s: +p.second };
+  }
+  const pad = n => String(n).padStart(2, '0');
+  function amsDate(iso) { const p = amsParts(iso); return `${p.y}-${pad(p.mo)}-${pad(p.d)}`; }
+  function amsDateTime(iso) { const p = amsParts(iso); return `${amsDate(iso)} ${pad(p.h)}:${pad(p.mi)}:${pad(p.s)}`; }
+  function amsTime(iso) { const p = amsParts(iso); return `${pad(p.h)}:${pad(p.mi)}:${pad(p.s)}`; }
+  const todayAms = () => amsDate(nowIso());
+  function oaDate(iso) {
+    const p = amsParts(iso); const msPart = new Date(iso).getUTCMilliseconds();
+    return (Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s, msPart) - Date.UTC(1899, 11, 30)) / 86400000;
+  }
+
+  // ---------- data model (records.json, same PascalCase format as the C# app) ----------
+  const emptyDb = () => ({ Employees: [], EmployeeChanges: [], Scanners: [], Records: [], DeviceChanges: [] });
+  function pick(o, name) {
+    if (!o || typeof o !== 'object') return undefined;
+    if (name in o) return o[name];
+    const k = Object.keys(o).find(k => k.toLowerCase() === name.toLowerCase());
+    return k === undefined ? undefined : o[k];
+  }
+  const str = v => (v === null || v === undefined) ? '' : String(v);
+  const optDate = v => (v === null || v === undefined || v === '') ? null : str(v);
+  const list = (o, n) => { const v = pick(o, n); if (v === null || v === undefined) return []; if (!Array.isArray(v)) fail(`"${n}" is not a list.`); return v; };
+
+  function normalizeDb(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail('Unable to read the data store.');
+    return {
+      Employees: list(raw, 'Employees').map(e => ({
+        Barcode: str(pick(e, 'Barcode')), Name: str(pick(e, 'Name')),
+        IsArchived: !!pick(e, 'IsArchived'), ArchivedAt: optDate(pick(e, 'ArchivedAt'))
+      })),
+      EmployeeChanges: list(raw, 'EmployeeChanges').map(c => ({
+        Action: str(pick(c, 'Action')), OldBarcode: str(pick(c, 'OldBarcode')), NewBarcode: str(pick(c, 'NewBarcode')),
+        OldName: str(pick(c, 'OldName')), NewName: str(pick(c, 'NewName')),
+        ChangedAtUtc: optDate(pick(c, 'ChangedAtUtc')) || nowIso(), AffectedRecords: +pick(c, 'AffectedRecords') || 0
+      })),
+      Scanners: list(raw, 'Scanners').map(d => {
+        const t = pick(d, 'Type');
+        return {
+          Barcode: str(pick(d, 'Barcode')), Type: (t === undefined || t === null) ? 'Scanner' : str(t),
+          RegisteredAt: optDate(pick(d, 'RegisteredAt')) || nowIso(),
+          IsArchived: !!pick(d, 'IsArchived'), ArchivedAt: optDate(pick(d, 'ArchivedAt'))
+        };
+      }),
+      Records: list(raw, 'Records').map(r => {
+        const t = pick(r, 'DeviceType');
+        return {
+          Id: str(pick(r, 'Id')) || newId(), EmployeeBarcode: str(pick(r, 'EmployeeBarcode')),
+          EmployeeNameAtCheckout: str(pick(r, 'EmployeeNameAtCheckout')), ScannerBarcode: str(pick(r, 'ScannerBarcode')),
+          DeviceType: (t === undefined || t === null) ? 'Scanner' : str(t),
+          CheckedOutAt: str(pick(r, 'CheckedOutAt')), CheckedInAt: optDate(pick(r, 'CheckedInAt'))
+        };
+      }),
+      DeviceChanges: list(raw, 'DeviceChanges').map(c => ({
+        Action: str(pick(c, 'Action')), OldBarcode: str(pick(c, 'OldBarcode')), NewBarcode: str(pick(c, 'NewBarcode')),
+        OldType: str(pick(c, 'OldType')), NewType: str(pick(c, 'NewType')),
+        ChangedAtUtc: optDate(pick(c, 'ChangedAtUtc')) || nowIso(), AffectedRecords: +pick(c, 'AffectedRecords') || 0
+      }))
+    };
+  }
+
+  function hasDup(arr) { return new Set(arr).size !== arr.length; }
+  function validate(db) {
+    const bad = m => { throw new Error('Data check failed: ' + m); };
+    if (db.Employees.some(e => e.IsArchived !== (e.ArchivedAt !== null))) bad('Employee archive state is inconsistent.');
+    if (db.Employees.some(e => !e.Barcode.trim())) bad('Employee barcode cannot be empty.');
+    if (hasDup(db.Employees.map(e => e.Barcode))) bad('Duplicate employee barcodes detected.');
+    if (db.Scanners.some(d => !TYPES.includes(d.Type)) || db.Records.some(r => !TYPES.includes(r.DeviceType))) bad('Unknown equipment type.');
+    if (db.Scanners.some(d => d.IsArchived !== (d.ArchivedAt !== null))) bad('Scanner archive state is inconsistent.');
+    if (db.Scanners.some(d => !d.Barcode.trim())) bad('Scanner barcode cannot be empty.');
+    if (hasDup(db.Scanners.map(d => d.Barcode))) bad('Duplicate scanner inventory barcodes detected.');
+    if (db.Records.some(r => !r.EmployeeBarcode.trim() || !r.ScannerBarcode.trim())) bad('Invalid scanner checkout record detected.');
+    if (db.Records.some(r => isNaN(ms(r.CheckedOutAt)) || (r.CheckedInAt !== null && isNaN(ms(r.CheckedInAt))))) bad('Invalid date in a checkout record.');
+    const scannerCodes = new Set([...db.Records.map(r => r.ScannerBarcode), ...db.Scanners.map(s => s.Barcode),
+      ...db.DeviceChanges.filter(c => c.Action === 'CORRECT_BARCODE').map(c => c.OldBarcode)]);
+    if (db.Employees.some(e => scannerCodes.has(e.Barcode))) bad('An employee barcode conflicts with a scanner barcode.');
+    const retiredEmp = new Set(db.EmployeeChanges.filter(c => c.Action === 'CORRECT_EMPLOYEE_BARCODE').map(c => c.OldBarcode)
+      .filter(code => !db.Employees.some(e => e.Barcode === code) && !db.Records.some(r => r.EmployeeBarcode === code)));
+    if (db.Scanners.some(s => retiredEmp.has(s.Barcode)) || db.Records.some(r => retiredEmp.has(r.ScannerBarcode)))
+      bad('A scanner barcode conflicts with a retired employee barcode.');
+    if (db.Records.some(r => r.CheckedInAt !== null && ms(r.CheckedInAt) < ms(r.CheckedOutAt))) bad('A scanner return date precedes its checkout date.');
+    if (hasDup(db.Records.filter(r => r.CheckedInAt === null).map(r => r.ScannerBarcode))) bad('A scanner has multiple open checkouts.');
+  }
+
+  // ---------- queries ----------
+  const deviceRetired = (db, code) => db.DeviceChanges.some(c => c.Action === 'CORRECT_BARCODE' && c.OldBarcode === code) &&
+    !db.Scanners.some(s => s.Barcode === code) && !db.Records.some(r => r.ScannerBarcode === code);
+  const employeeRetired = (db, code) => db.EmployeeChanges.some(c => c.Action === 'CORRECT_EMPLOYEE_BARCODE' && c.OldBarcode === code) &&
+    !db.Employees.some(e => e.Barcode === code) && !db.Records.some(r => r.EmployeeBarcode === code);
+  const deviceTypeFor = (db, code) => (db.Scanners.find(d => d.Barcode === code) || {}).Type || 'Scanner';
+  const employeeName = (db, r) => r.EmployeeNameAtCheckout.trim() ? r.EmployeeNameAtCheckout :
+    ((db.Employees.find(e => e.Barcode === r.EmployeeBarcode) || {}).Name || '');
+
+  function checkoutsForDate(records, date) {
+    return records.filter(r => {
+      const start = amsDate(r.CheckedOutAt);
+      if (start === date) return true;
+      if (start > date) return false;
+      return r.CheckedInAt === null || amsDate(r.CheckedInAt) >= date;
+    });
+  }
+  function checkoutStatusOnDate(r, date) {
+    const start = amsDate(r.CheckedOutAt);
+    const returned = r.CheckedInAt !== null && amsDate(r.CheckedInAt) <= date;
+    if (start < date) return returned ? 'CARRYOVER / RETURNED' : 'CARRYOVER';
+    return returned ? 'CHECKED IN' : 'ON LOAN';
+  }
+
+  // ---------- scanning state machine (port of MainForm.HandleBarcode) ----------
+  // Returns { status, warn, pending, mutate?(db), afterCommit? }. mutate runs inside a commit.
+  function scan(db, pendingEmployee, barcode, newDeviceType) {
+    const R = (status, warn, pending, mutate) => ({ status, warn: !!warn, pending, mutate });
+    const active = [...db.Records].reverse().find(r => r.ScannerBarcode === barcode && r.CheckedInAt === null);
+    if (active) {
+      const now = nowIso();
+      return R(`CHECKED IN  •  ${deviceTypeFor(db, barcode)} ${barcode}`, false, null, d => {
+        const rec = d.Records.find(r => r.Id === active.Id);
+        if (!rec || rec.CheckedInAt !== null) fail('Device already checked in.');
+        rec.CheckedInAt = ms(now) < ms(rec.CheckedOutAt) ? rec.CheckedOutAt : now;
+      });
+    }
+    if (db.Employees.some(e => e.Barcode === barcode && e.IsArchived))
+      return R(`EMPLOYEE REMOVED  •  ${barcode}. Restore in Employee Management.`, true, pendingEmployee);
+    if (employeeRetired(db, barcode))
+      return R(`SUPERSEDED EMPLOYEE BARCODE  •  ${barcode}. Use the corrected ID.`, true, pendingEmployee);
+    if (db.Scanners.some(d => d.Barcode === barcode && d.IsArchived))
+      return R(`DEVICE REMOVED  •  ${barcode}. Restore it in Devices before use.`, true, pendingEmployee);
+    if (deviceRetired(db, barcode))
+      return R(`SUPERSEDED BARCODE  •  ${barcode}. Scan the corrected device label.`, true, pendingEmployee);
+
+    if (pendingEmployee === null) {
+      if (db.Records.some(r => r.ScannerBarcode === barcode) || db.Scanners.some(d => d.Barcode === barcode))
+        return R(`ALREADY CHECKED IN / AVAILABLE  •  ${deviceTypeFor(db, barcode)} ${barcode}. Scan an employee before issuing.`, true, null);
+      const name = (db.Employees.find(e => e.Barcode === barcode) || {}).Name || '';
+      return R(`EMPLOYEE SELECTED  •  ${barcode}${name ? '  |  ' + name : ''}. Now scan the device barcode.`, false, barcode);
+    }
+    if (barcode === pendingEmployee)
+      return R('Employee barcode repeated. Scan the DEVICE barcode next.', true, pendingEmployee);
+    const asEmp = db.Employees.find(e => e.Barcode === barcode);
+    if (asEmp)
+      return R(`EMPLOYEE CHANGED  •  ${barcode}${asEmp.Name ? '  |  ' + asEmp.Name : ''}. Now scan the device barcode.`, false, barcode);
+
+    const empCode = pendingEmployee;
+    if (db.Employees.some(e => e.Barcode === empCode && e.IsArchived) || employeeRetired(db, empCode))
+      return R('Employee is removed or superseded. Scan a valid employee ID.', true, null);
+    const empName = (db.Employees.find(e => e.Barcode === empCode) || {}).Name || '';
+    const type = TYPES.includes(newDeviceType) ? newDeviceType : 'Scanner';
+    const id = newId(); const now = nowIso();
+    const finalType = db.Scanners.some(d => d.Barcode === barcode) ? deviceTypeFor(db, barcode) : type;
+    return R(`CHECKED OUT  •  ${finalType} ${barcode}  →  Employee ${empCode}`, false, null, d => {
+      if (!d.Employees.some(e => e.Barcode === empCode))
+        d.Employees.push({ Barcode: empCode, Name: '', IsArchived: false, ArchivedAt: null });
+      if (d.Records.some(r => r.ScannerBarcode === barcode && r.CheckedInAt === null)) fail('Device is already checked out.');
+      let dev = d.Scanners.find(x => x.Barcode === barcode);
+      if (!dev) { dev = { Barcode: barcode, Type: type, RegisteredAt: now, IsArchived: false, ArchivedAt: null }; d.Scanners.push(dev); }
+      d.Records.push({ Id: id, EmployeeBarcode: empCode, EmployeeNameAtCheckout: empName, ScannerBarcode: barcode,
+        DeviceType: dev.Type, CheckedOutAt: now, CheckedInAt: null });
+    });
+  }
+
+  // ---------- administration (each mutates a draft db inside a commit) ----------
+  const norm = s => (s === null || s === undefined ? '' : String(s)).trim();
+  const needCode = (c, what) => { if (!validCode(c)) fail(`${what} must contain 1–128 printable characters.`); };
+
+  function registerDevice(db, code, type) {
+    code = norm(code); needCode(code, 'Device barcode');
+    if (!TYPES.includes(type)) fail('Select Scanner, Radio or Other.');
+    if (deviceRetired(db, code)) fail('Superseded device barcode. Use the corrected code.');
+    if (db.Employees.some(e => e.Barcode === code) || employeeRetired(db, code)) fail('Device barcode conflicts with an employee ID.');
+    if (db.Scanners.some(s => s.Barcode === code) || db.Records.some(r => r.ScannerBarcode === code))
+      fail(db.Scanners.some(s => s.Barcode === code && s.IsArchived)
+        ? `DEVICE REMOVED  ·  ${code}. Use Devices > RESTORE.`
+        : `DEVICE ALREADY REGISTERED  ·  ${code}. Use Devices > CHANGE TYPE to correct its category.`);
+    db.Scanners.push({ Barcode: code, Type: type, RegisteredAt: nowIso(), IsArchived: false, ArchivedAt: null });
+  }
+
+  function correctDeviceBarcode(db, oldCode, newCode) {
+    oldCode = norm(oldCode); newCode = norm(newCode);
+    needCode(oldCode, 'Barcode'); needCode(newCode, 'Barcode');
+    if (oldCode === newCode) fail('The new barcode must be different from the existing barcode.');
+    const dev = db.Scanners.find(d => d.Barcode === oldCode);
+    const affected = db.Records.filter(r => r.ScannerBarcode === oldCode);
+    if (!dev && !affected.length) fail('Selected scanner was not found.');
+    if (db.Employees.some(e => e.Barcode === newCode)) fail('This barcode belongs to an employee.');
+    if (db.Scanners.some(d => d.Barcode === newCode) || db.Records.some(r => r.ScannerBarcode === newCode))
+      fail('The new barcode is already in use by another scanner.');
+    if (!dev) db.Scanners.push({ Barcode: newCode, Type: 'Scanner', RegisteredAt: nowIso(), IsArchived: false, ArchivedAt: null });
+    else dev.Barcode = newCode;
+    affected.forEach(r => { r.ScannerBarcode = newCode; });
+    db.DeviceChanges.push({ Action: 'CORRECT_BARCODE', OldBarcode: oldCode, NewBarcode: newCode, OldType: '', NewType: '',
+      ChangedAtUtc: nowIso(), AffectedRecords: affected.length });
+  }
+
+  function changeDeviceType(db, code, newType) {
+    code = norm(code); needCode(code, 'Barcode');
+    newType = norm(newType); if (!TYPES.includes(newType)) fail('Select Scanner, Radio or Other.');
+    let dev = db.Scanners.find(d => d.Barcode === code);
+    const affected = db.Records.filter(r => r.ScannerBarcode === code);
+    if (!dev && !affected.length) fail('Selected device was not found.');
+    if (dev && dev.IsArchived) fail('Restore this removed device before changing its type.');
+    const prev = dev ? dev.Type : affected[0].DeviceType;
+    if (prev === newType) fail('The device already has this type.');
+    if (!dev) { dev = { Barcode: code, Type: newType, RegisteredAt: nowIso(), IsArchived: false, ArchivedAt: null }; db.Scanners.push(dev); }
+    else dev.Type = newType;
+    affected.forEach(r => { r.DeviceType = newType; });
+    db.DeviceChanges.push({ Action: 'CHANGE_DEVICE_TYPE', OldBarcode: code, NewBarcode: '', OldType: prev, NewType: newType,
+      ChangedAtUtc: nowIso(), AffectedRecords: affected.length });
+  }
+
+  function archiveDevice(db, code) {
+    code = norm(code); needCode(code, 'Barcode');
+    let dev = db.Scanners.find(d => d.Barcode === code);
+    const hist = db.Records.filter(r => r.ScannerBarcode === code);
+    if (!dev && !hist.length) fail('Selected scanner was not found.');
+    if (hist.some(r => r.CheckedInAt === null)) fail('This scanner is on loan. Check it in before removal, or correct its barcode.');
+    if (dev && dev.IsArchived) fail('This scanner has already been removed.');
+    if (!dev) { dev = { Barcode: code, Type: 'Scanner', RegisteredAt: nowIso(), IsArchived: false, ArchivedAt: null }; db.Scanners.push(dev); }
+    dev.IsArchived = true; dev.ArchivedAt = nowIso();
+    db.DeviceChanges.push({ Action: 'REMOVE_DEVICE', OldBarcode: code, NewBarcode: '', OldType: '', NewType: '',
+      ChangedAtUtc: nowIso(), AffectedRecords: hist.length });
+  }
+
+  function restoreDevice(db, code) {
+    code = norm(code); needCode(code, 'Barcode');
+    const dev = db.Scanners.find(d => d.Barcode === code);
+    if (!dev || !dev.IsArchived) fail('Selected scanner is not removed.');
+    dev.IsArchived = false; dev.ArchivedAt = null;
+    db.DeviceChanges.push({ Action: 'RESTORE_DEVICE', OldBarcode: code, NewBarcode: '', OldType: '', NewType: '',
+      ChangedAtUtc: nowIso(), AffectedRecords: 0 });
+  }
+
+  function saveEmployee(db, code, name) {
+    code = norm(code); name = norm(name);
+    needCode(code, 'Employee barcode');
+    if (name.length > 200 || hasControl(name)) fail('Employee name is invalid (maximum 200 characters).');
+    if (deviceRetired(db, code) || employeeRetired(db, code) || db.Records.some(r => r.ScannerBarcode === code) ||
+      db.Scanners.some(d => d.Barcode === code))
+      fail('This barcode belongs to a scanner or was superseded; it cannot be an employee ID.');
+    const emp = db.Employees.find(e => e.Barcode === code);
+    if (!emp) { db.Employees.push({ Barcode: code, Name: name, IsArchived: false, ArchivedAt: null }); return; }
+    if (emp.IsArchived) fail('Employee was removed. Use Employee Management > RESTORE.');
+    if (emp.Name !== name) {
+      db.EmployeeChanges.push({ Action: 'UPDATE_EMPLOYEE_NAME', OldBarcode: code, NewBarcode: code, OldName: emp.Name,
+        NewName: name, ChangedAtUtc: nowIso(), AffectedRecords: 0 });
+      emp.Name = name;
+    }
+  }
+
+  function updateEmployee(db, oldCode, newCode, newName) {
+    oldCode = norm(oldCode); newCode = norm(newCode); newName = norm(newName);
+    needCode(oldCode, 'Employee barcode'); needCode(newCode, 'Employee barcode');
+    if (newName.length > 200 || hasControl(newName)) fail('Employee name must contain no control characters and at most 200 characters.');
+    const emp = db.Employees.find(e => e.Barcode === oldCode);
+    if (!emp) fail('Selected employee was not found.');
+    if (emp.IsArchived) fail('Restore this employee before editing.');
+    if (oldCode === newCode && emp.Name === newName) fail('Employee details have not changed.');
+    let affected = 0;
+    if (oldCode !== newCode) {
+      if (db.Employees.some(e => e.Barcode === newCode)) fail('Another employee already uses this barcode.');
+      if (db.Scanners.some(d => d.Barcode === newCode) || db.Records.some(r => r.ScannerBarcode === newCode) || deviceRetired(db, newCode))
+        fail('This code belongs to a scanner or a superseded scanner label.');
+      db.Records.filter(r => r.EmployeeBarcode === oldCode).forEach(r => { r.EmployeeBarcode = newCode; affected++; });
+    }
+    db.EmployeeChanges.push({ Action: oldCode !== newCode ? 'CORRECT_EMPLOYEE_BARCODE' : 'UPDATE_EMPLOYEE_NAME',
+      OldBarcode: oldCode, NewBarcode: newCode, OldName: emp.Name, NewName: newName, ChangedAtUtc: nowIso(), AffectedRecords: affected });
+    emp.Barcode = newCode; emp.Name = newName;
+  }
+
+  function archiveEmployee(db, code) {
+    code = norm(code); needCode(code, 'Employee barcode');
+    const emp = db.Employees.find(e => e.Barcode === code);
+    if (!emp) fail('Selected employee was not found.');
+    if (emp.IsArchived) fail('Employee is already removed.');
+    if (db.Records.some(r => r.EmployeeBarcode === code && r.CheckedInAt === null))
+      fail('Employee has an open checkout. Return equipment before removal.');
+    emp.IsArchived = true; emp.ArchivedAt = nowIso();
+    db.EmployeeChanges.push({ Action: 'REMOVE_EMPLOYEE', OldBarcode: code, NewBarcode: '', OldName: emp.Name, NewName: '',
+      ChangedAtUtc: nowIso(), AffectedRecords: db.Records.filter(r => r.EmployeeBarcode === code).length });
+  }
+
+  function restoreEmployee(db, code) {
+    code = norm(code); needCode(code, 'Employee barcode');
+    const emp = db.Employees.find(e => e.Barcode === code);
+    if (!emp || !emp.IsArchived) fail('Selected employee is not removed.');
+    emp.IsArchived = false; emp.ArchivedAt = null;
+    db.EmployeeChanges.push({ Action: 'RESTORE_EMPLOYEE', OldBarcode: code, NewBarcode: code, OldName: emp.Name, NewName: emp.Name,
+      ChangedAtUtc: nowIso(), AffectedRecords: 0 });
+  }
+
+  // ---------- Excel (.xlsx) writer: same 3 sheets / columns / styles as ExcelExporter.cs ----------
+  const enc = new TextEncoder();
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function makeZip(files) {
+    const parts = [], central = []; let offset = 0;
+    const d = new Date();
+    const dt = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const dd = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    for (const f of files) {
+      const name = enc.encode(f.name), data = enc.encode(f.text), crc = crc32(data);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+      lh.setUint16(10, dt, true); lh.setUint16(12, dd, true); lh.setUint32(14, crc, true);
+      lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+      parts.push(new Uint8Array(lh.buffer), name, data);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+      ch.setUint16(10, 0, true); ch.setUint16(12, dt, true); ch.setUint16(14, dd, true); ch.setUint32(16, crc, true);
+      ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true);
+      ch.setUint32(42, offset, true);
+      central.push(new Uint8Array(ch.buffer), name);
+      offset += 30 + name.length + data.length;
+    }
+    const cdSize = central.reduce((s, p) => s + p.length, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+    end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+    const all = [...parts, ...central, new Uint8Array(end.buffer)];
+    const out = new Uint8Array(all.reduce((s, p) => s + p.length, 0)); let o = 0;
+    for (const p of all) { out.set(p, o); o += p.length; }
+    return out;
+  }
+  const xml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+  function colName(i) { let r = ''; for (let x = i + 1; x > 0; x = Math.floor((x - 1) / 26)) r = String.fromCharCode(65 + ((x - 1) % 26)) + r; return r; }
+  const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  function sheetXml(headers, rows, widths) {
+    const all = [headers, ...rows]; let sd = '';
+    all.forEach((row, ri) => {
+      sd += `<row r="${ri + 1}">`;
+      row.forEach((v, ci) => {
+        if (v === null || v === undefined) return;
+        const a = colName(ci) + (ri + 1);
+        if (v && typeof v === 'object' && v.date) sd += `<c r="${a}" s="2"><v>${oaDate(v.date)}</v></c>`;
+        else sd += `<c r="${a}" t="inlineStr" s="${ri === 0 ? 1 : 0}"><is><t xml:space="preserve">${xml(v)}</t></is></c>`;
+      });
+      sd += '</row>';
+    });
+    return `<?xml version="1.0" encoding="utf-8"?><worksheet xmlns="${NS}"><sheetViews><sheetView workbookViewId="0">` +
+      `<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>` +
+      widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('') +
+      `</cols><sheetData>${sd}</sheetData><autoFilter ref="A1:${colName(headers.length - 1)}${all.length}"/></worksheet>`;
+  }
+  function buildXlsx(db) {
+    const CT = 'http://schemas.openxmlformats.org/package/2006/content-types';
+    const PR = 'http://schemas.openxmlformats.org/package/2006/relationships';
+    const head = '<?xml version="1.0" encoding="utf-8"?>';
+    const byCode = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+    const sorted = [...db.Records].sort((a, b) => ms(a.CheckedOutAt) - ms(b.CheckedOutAt));
+    const hdr = ['Record ID', 'Employee Barcode', 'Employee Name', 'Scanner Barcode', 'Check-Out Date & Time', 'Check-In Date & Time', 'Status', 'Device Type'];
+    const w = [37, 25, 32, 25, 25, 25, 18, 18];
+    const files = [
+      { name: '[Content_Types].xml', text: head + `<Types xmlns="${CT}"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+        `<Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
+        `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
+        [1, 2, 3].map(i => `<Override PartName="/xl/worksheets/sheet${i}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') + '</Types>' },
+      { name: '_rels/.rels', text: head + `<Relationships xmlns="${PR}"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+      { name: 'xl/_rels/workbook.xml.rels', text: head + `<Relationships xmlns="${PR}">` +
+        [1, 2, 3].map(i => `<Relationship Id="rId${i}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i}.xml"/>`).join('') +
+        `<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+      { name: 'xl/workbook.xml', text: head + `<workbook xmlns="${NS}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>` +
+        ['Employee Registry', 'Check-Out History', 'Check-In History'].map((n, i) => `<sheet name="${n}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') + '</sheets></workbook>' },
+      { name: 'xl/styles.xml', text: head + `<styleSheet xmlns="${NS}"><numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy-mm-dd hh:mm:ss"/></numFmts>` +
+        `<fonts count="2"><font><sz val="11"/><name val="Aptos"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Aptos"/></font></fonts>` +
+        `<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1B3A56"/><bgColor indexed="64"/></patternFill></fill></fills>` +
+        `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
+        `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
+        `<cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+        `<xf numFmtId="0" fontId="1" fillId="1" borderId="0" xfId="0" applyFill="1" applyFont="1"/>` +
+        `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>` },
+      { name: 'xl/worksheets/sheet1.xml', text: sheetXml(['Employee Barcode', 'Employee Name', 'Status'],
+        [...db.Employees].sort((a, b) => byCode(a.Barcode, b.Barcode)).map(e => [e.Barcode, e.Name, e.IsArchived ? 'Removed' : 'Active']), [24, 35, 16]) },
+      { name: 'xl/worksheets/sheet2.xml', text: sheetXml(hdr, sorted.map(r => [r.Id, r.EmployeeBarcode, employeeName(db, r), r.ScannerBarcode,
+        { date: r.CheckedOutAt }, r.CheckedInAt ? { date: r.CheckedInAt } : null, r.CheckedInAt ? 'Checked In' : 'Checked Out', r.DeviceType]), w) },
+      { name: 'xl/worksheets/sheet3.xml', text: sheetXml(hdr, sorted.filter(r => r.CheckedInAt).map(r => [r.Id, r.EmployeeBarcode, employeeName(db, r), r.ScannerBarcode,
+        { date: r.CheckedOutAt }, { date: r.CheckedInAt }, 'Checked In', r.DeviceType]), w) }
+    ];
+    return makeZip(files);
+  }
+
+  global.Core = {
+    TYPES, UserError, nowIso, newId, validCode, hasControl, emptyDb, normalizeDb, validate,
+    amsDate, amsDateTime, amsTime, todayAms, deviceRetired, employeeRetired, deviceTypeFor, employeeName,
+    checkoutsForDate, checkoutStatusOnDate, scan, registerDevice, correctDeviceBarcode, changeDeviceType,
+    archiveDevice, restoreDevice, saveEmployee, updateEmployee, archiveEmployee, restoreEmployee, buildXlsx
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+(function(){
+'use strict';
+const C = window.Core;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ---------------- state ----------------
+let db = C.emptyDb();
+let pendingEmployee = null;
+let selDevice = null, selEmployee = null;
+let pendingCorrection = null, pendingEmpUpdate = null;
+let dirHandle = null;            // connected folder
+let folderState = 'none';        // none | ok | needsPermission | unsupported
+let idbOk = true;
+let lastExcelOk = null;
+const fsSupported = typeof window.showDirectoryPicker === 'function';
+const RECORDS_FOLDER = 'Barcode Scanner Records';
+
+// ---------------- IndexedDB (browser copy) ----------------
+let idbP = null;
+function idb() {
+  if (idbP) return idbP;
+  idbP = new Promise((res, rej) => {
+    try {
+      const r = indexedDB.open('equipment-control', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    } catch (e) { rej(e); }
+  });
+  return idbP;
+}
+async function kvGet(k) { const d = await idb(); return new Promise((res, rej) => { const q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+async function kvSet(k, v) { const d = await idb(); return new Promise((res, rej) => { const tx = d.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error); }); }
+
+// ---------------- folder (File System Access API) ----------------
+async function readFolderJson() {
+  try { const fh = await dirHandle.getFileHandle('records.json'); return await (await fh.getFile()).text(); }
+  catch (e) { if (e && e.name === 'NotFoundError') return null; throw e; }
+}
+async function writeFile(name, data) {
+  const fh = await dirHandle.getFileHandle(name, { create: true });
+  const w = await fh.createWritable();
+  try { await w.write(data); await w.close(); } catch (e) { try { await w.abort(); } catch (_) {} throw e; }
+}
+async function writeFolder(next) {
+  const prev = await readFolderJson();
+  if (prev !== null) await writeFile('records.json.bak', prev);     // previous valid snapshot, like the desktop app
+  await writeFile('records.json', JSON.stringify(next, null, 2));    // swap-file write; committed on close
+  try { await writeFile('Barcode_Scanner_Records.xlsx', C.buildXlsx(next)); lastExcelOk = true; }
+  catch (e) { lastExcelOk = false; console.warn('Excel sync failed', e); }
+}
+
+// ---------------- commit (validate → save → apply) ----------------
+let chain = Promise.resolve();
+const queue = task => (chain = chain.then(task, task));
+
+async function commit(change) {
+  const next = JSON.parse(JSON.stringify(db));
+  change(next);
+  C.validate(next);
+  const hadIdb = idbOk;
+  let savedBrowser = false, savedFolder = false;
+  try { await kvSet('db', JSON.stringify(next)); savedBrowser = true; } catch (e) { idbOk = false; }
+  if (folderState === 'ok') {
+    try { await writeFolder(next); savedFolder = true; await kvSet('folderDirty', false).catch(() => {}); }
+    catch (e) { console.warn('Folder write failed', e); folderState = 'needsPermission'; await kvSet('folderDirty', true).catch(() => {}); }
+  } else if (savedBrowser && dirHandle) { await kvSet('folderDirty', true).catch(() => {}); }
+  if (!savedBrowser && !savedFolder && hadIdb) throw new Error('Could not save. No change was committed.');
+  db = next;
+  updateStoreBadge();
+  return { savedFolder };
+}
+function saveSuffix(r) {
+  if (r.savedFolder) return lastExcelOk ? '  •  Excel updated.' : '  •  Data saved, but Excel sync failed. Close Excel; it updates on the next scan.';
+  if (dirHandle) return '  •  Saved in browser. Folder not reachable: click RECONNECT FOLDER.';
+  return '';
+}
+
+// ---------------- UI helpers ----------------
+function showStatus(msg, warn) {
+  const t = new Date(); const p = n => String(n).padStart(2, '0');
+  $('status').textContent = `[${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}]  ${msg}`;
+  $('status').className = warn ? 'warn' : '';
+}
+function updateHint() {
+  const h = $('hint');
+  if (pendingEmployee === null) { h.textContent = 'READY  ·  Employee + device to issue  /  device only to return'; h.className = 'hint'; }
+  else { h.textContent = `WAITING FOR DEVICE  ·  Employee ${pendingEmployee} selected. Scan device now.`; h.className = 'hint wait'; }
+}
+function focusScan() { const s = $('scan'); s.focus(); s.select(); }
+function updateStoreBadge() {
+  const el = $('storeState'), tx = $('storeText'), b = $('btnFolder');
+  el.className = 'store';
+  if (folderState === 'ok') { el.classList.add('ok'); tx.textContent = 'SAVING TO FOLDER: ' + dirHandle.name; b.textContent = 'CHANGE FOLDER'; b.className = 'btn'; }
+  else if (folderState === 'needsPermission') { el.classList.add('warn'); tx.textContent = 'FOLDER NEEDS PERMISSION'; b.textContent = 'RECONNECT FOLDER'; b.className = 'btn primary'; }
+  else if (!idbOk) { el.classList.add('bad'); tx.textContent = 'DEMO — NOT SAVED'; b.textContent = 'CONNECT FOLDER'; }
+  else { el.classList.add('warn'); tx.textContent = 'BROWSER ONLY'; b.textContent = 'CONNECT FOLDER'; b.className = 'btn primary'; }
+  b.disabled = !fsSupported;
+  const banner = $('banner');
+  let msg = '';
+  if (!fsSupported) msg = 'This browser cannot write to a folder (open in Microsoft Edge or Google Chrome, as a normal tab). Data is kept in this browser only — use BACKUP JSON and EXCEL regularly.';
+  if (!idbOk) msg = 'Browser storage is not available here (demo/preview mode). Changes are lost when the page closes.';
+  banner.textContent = msg; banner.classList.toggle('on', !!msg);
+}
+function modal(title, text, buttons) {
+  return new Promise(res => {
+    $('mTitle').textContent = title; $('mText').textContent = text;
+    const box = $('mBtns'); box.innerHTML = '';
+    buttons.forEach((b, i) => {
+      const el = document.createElement('button'); el.className = 'btn ' + (b.cls || ''); el.textContent = b.label;
+      el.onclick = () => { $('modalBg').classList.remove('on'); res(b.value); setTimeout(focusScan, 0); };
+      box.appendChild(el); if (i === buttons.length - 1) setTimeout(() => el.focus(), 0);
+    });
+    $('modalBg').classList.add('on');
+  });
+}
+const confirmBox = (title, text, ok = 'YES') => modal(title, text, [{ label: 'NO', value: false }, { label: ok, value: true, cls: 'primary' }]);
+function download(name, data, type) {
+  try {
+    const url = URL.createObjectURL(new Blob([data], { type }));
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000); return true;
+  } catch (e) { return false; }
+}
+function table(headers, rows, opts = {}) {
+  if (!rows.length) return `<div class="empty">${esc(opts.empty || 'No records.')}</div>`;
+  return `<table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>` +
+    rows.map(r => `<tr${opts.key ? ` data-key="${esc(r.key)}"${r.key === opts.sel ? ' class="sel"' : ''}` : ''}>` +
+      r.cells.map(c => `<td title="${esc(c.text ?? c)}">${c.html ?? esc(c)}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
+}
+const badge = s => {
+  const cls = s === 'ON LOAN' ? 'b-loan' : s === 'AVAILABLE' || s === 'ACTIVE' || s === 'CHECKED IN' ? 'b-ok' : s === 'REMOVED' ? 'b-rem' : s.startsWith('CARRYOVER') ? 'b-carry' : '';
+  return { html: `<span class="badge ${cls}">${esc(s)}</span>`, text: s };
+};
+const byCode = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+
+// ---------------- render ----------------
+function render() {
+  const open = new Set(db.Records.filter(r => r.CheckedInAt === null).map(r => r.ScannerBarcode));
+  const removed = new Set(db.Scanners.filter(d => d.IsArchived).map(d => d.Barcode));
+  const allDevices = [...new Set([...db.Scanners.map(d => d.Barcode), ...db.Records.map(r => r.ScannerBarcode)])].sort(byCode);
+  const available = allDevices.filter(c => !open.has(c) && !removed.has(c));
+  const today = C.todayAms();
+  const carry = db.Records.filter(r => r.CheckedInAt === null && C.amsDate(r.CheckedOutAt) < today).length;
+  $('availCount').textContent = available.length;
+  $('loanLine').textContent = `●  ON LOAN ${open.size}    ·    CARRYOVER ${carry}`;
+  $('availWrap').innerHTML = table(['Device Barcode', 'Type'], available.map(c => ({ cells: [c, C.deviceTypeFor(db, c)] })),
+    { empty: 'NO DEVICES AVAILABLE\n\nScan an employee, then the device barcode.' });
+  $('today').textContent = 'Today  •  ' + today;
+
+  const recCount = new Map(), loanCount = new Map(), devCount = new Map();
+  for (const r of db.Records) {
+    recCount.set(r.EmployeeBarcode, (recCount.get(r.EmployeeBarcode) || 0) + 1);
+    devCount.set(r.ScannerBarcode, (devCount.get(r.ScannerBarcode) || 0) + 1);
+    if (r.CheckedInAt === null) loanCount.set(r.EmployeeBarcode, (loanCount.get(r.EmployeeBarcode) || 0) + 1);
+  }
+  if (selDevice && !allDevices.includes(selDevice)) selDevice = null;
+  $('devWrap').innerHTML = table(['Device Barcode', 'Type', 'Status', 'Records'], allDevices.map(c => ({
+    key: c, cells: [c, C.deviceTypeFor(db, c), badge(removed.has(c) ? 'REMOVED' : open.has(c) ? 'ON LOAN' : 'AVAILABLE'), String(devCount.get(c) || 0)]
+  })), { key: true, sel: selDevice, empty: 'No devices yet.' });
+
+  const emps = [...db.Employees].sort((a, b) => byCode(a.Barcode, b.Barcode));
+  $('empWrap').innerHTML = table(['Employee Barcode', 'Employee Name'], emps.filter(e => !e.IsArchived).map(e => ({ cells: [e.Barcode, e.Name] })),
+    { empty: 'No employees yet. They are added automatically on first scan, or above.' });
+  if (selEmployee && !emps.some(e => e.Barcode === selEmployee)) selEmployee = null;
+  $('mgmtWrap').innerHTML = table(['Employee Barcode', 'Employee Name', 'Status', 'Records', 'On Loan'], emps.map(e => ({
+    key: e.Barcode, cells: [e.Barcode, e.Name, badge(e.IsArchived ? 'REMOVED' : 'ACTIVE'), String(recCount.get(e.Barcode) || 0), String(loanCount.get(e.Barcode) || 0)]
+  })), { key: true, sel: selEmployee, empty: 'No employees yet.' });
+  renderHistory();
+}
+function renderHistory() {
+  const outD = $('outDate').value || C.todayAms(), inD = $('inDate').value || C.todayAms();
+  const outRows = C.checkoutsForDate(db.Records, outD).sort((a, b) => Date.parse(b.CheckedOutAt) - Date.parse(a.CheckedOutAt));
+  $('outWrap').innerHTML = table(['Check-Out Time', 'Employee Barcode', 'Employee Name', 'Device Barcode', 'Type', 'Status'],
+    outRows.map(r => ({ cells: [C.amsDateTime(r.CheckedOutAt), r.EmployeeBarcode, C.employeeName(db, r), r.ScannerBarcode, r.DeviceType, badge(C.checkoutStatusOnDate(r, outD))] })),
+    { empty: 'No check-outs on this date.' });
+  const inRows = db.Records.filter(r => r.CheckedInAt !== null && C.amsDate(r.CheckedInAt) === inD).sort((a, b) => Date.parse(b.CheckedInAt) - Date.parse(a.CheckedInAt));
+  $('inWrap').innerHTML = table(['Check-In Time', 'Employee Barcode', 'Employee Name', 'Device Barcode', 'Type', 'Check-Out Time'],
+    inRows.map(r => ({ cells: [C.amsTime(r.CheckedInAt), r.EmployeeBarcode, C.employeeName(db, r), r.ScannerBarcode, r.DeviceType, C.amsDateTime(r.CheckedOutAt)] })),
+    { empty: 'No check-ins on this date.' });
+}
+
+// ---------------- actions ----------------
+async function run(action, okMsg) {
+  try { const r = await commit(action); render(); showStatus(okMsg() + saveSuffix(r), !!(r && !r.savedFolder && dirHandle) || lastExcelOk === false && r.savedFolder); return true; }
+  catch (e) { showStatus(e instanceof C.UserError ? e.message : 'Operation failed. No change was committed. ' + (e.message || ''), true); console.error(e); return false; }
+}
+function processScan(raw) {
+  const code = raw.trim();
+  if (!code) { showStatus('No barcode scanned.', true); return Promise.resolve(); }
+  if (!C.validCode(code)) { showStatus('Invalid barcode. Maximum 128 printable characters.', true); return Promise.resolve(); }
+  return queue(async () => {
+    const r = C.scan(db, pendingEmployee, code, $('newType').value);
+    if (!r.mutate) { pendingEmployee = r.pending; updateHint(); showStatus(r.status, r.warn); return; }
+    const ok = await run(r.mutate, () => r.status);
+    if (ok) { pendingEmployee = r.pending; $('newType').value = 'Scanner'; }
+    updateHint();
+  });
+}
+function clearPendingDev() { pendingCorrection = null; $('btnCorr').textContent = 'CORRECT CODE'; }
+function clearPendingEmp() { pendingEmpUpdate = null; $('btnEmpUpd').textContent = 'SAVE CHANGES'; }
+
+$('scan').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return; e.preventDefault();
+  const v = e.target.value; e.target.value = ''; processScan(v).then(focusScan);
+});
+$('btnProcess').onclick = () => { const v = $('scan').value; $('scan').value = ''; processScan(v).then(focusScan); };
+$('btnCancel').onclick = () => { pendingEmployee = null; $('scan').value = ''; updateHint(); showStatus('Pending employee cleared.'); focusScan(); };
+
+$('btnReg').onclick = () => queue(async () => {
+  const code = $('regCode').value.trim(), type = $('regType').value;
+  if (await run(d => C.registerDevice(d, code, type), () => `DEVICE REGISTERED  ·  ${type} ${code} available.`)) {
+    pendingEmployee = null; updateHint(); $('regCode').value = ''; $('regType').value = 'Scanner';
+  }
+  focusScan();
+});
+$('regCode').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('btnReg').click(); } });
+
+$('btnEmpSave').onclick = () => queue(async () => {
+  const code = $('empCode').value.trim(), name = $('empName').value.trim();
+  if (await run(d => C.saveEmployee(d, code, name), () => 'Employee saved successfully.')) { $('empCode').value = ''; $('empName').value = ''; }
+});
+['empCode', 'empName'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('btnEmpSave').click(); } }));
+
+// selection in management grids
+$('devWrap').addEventListener('click', e => { const tr = e.target.closest('tr[data-key]'); if (!tr) return; selDevice = tr.dataset.key; clearPendingDev(); $('editType').value = C.deviceTypeFor(db, selDevice); render(); });
+$('mgmtWrap').addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-key]'); if (!tr) return; selEmployee = tr.dataset.key; clearPendingEmp();
+  const emp = db.Employees.find(x => x.Barcode === selEmployee); $('editCode').value = emp ? emp.Barcode : ''; $('editName').value = emp ? emp.Name : ''; render();
+});
+
+$('btnCorr').onclick = () => queue(async () => {
+  const oldC = selDevice, newC = $('corrCode').value.trim();
+  if (!oldC) return showStatus('Select a device in Devices first.', true);
+  if (!C.validCode(newC)) return showStatus('Enter a valid replacement barcode (1–128 printable characters).', true);
+  if (!pendingCorrection || pendingCorrection.o !== oldC || pendingCorrection.n !== newC) {
+    clearPendingDev(); pendingCorrection = { o: oldC, n: newC }; $('btnCorr').textContent = 'CONFIRM CHANGE';
+    return showStatus(`CONFIRM CORRECTION  •  ${oldC} → ${newC}. Click CONFIRM CHANGE again.`, true);
+  }
+  clearPendingDev();
+  if (await run(d => C.correctDeviceBarcode(d, oldC, newC), () => `BARCODE CORRECTED  •  ${oldC} → ${newC}`)) {
+    selDevice = newC; $('corrCode').value = ''; pendingEmployee = null; updateHint(); render();
+  }
+});
+$('btnType').onclick = () => queue(async () => {
+  const code = selDevice, nt = $('editType').value;
+  if (!code) return showStatus('Select a device in Devices first.', true);
+  const ot = C.deviceTypeFor(db, code);
+  if (ot === nt) return showStatus('Device already has this type.');
+  if (!await confirmBox('Confirm device type change', `Change ${code} from ${ot} to ${nt}?\nExisting handover history will be kept.`)) return showStatus('Device type change cancelled.');
+  await run(d => C.changeDeviceType(d, code, nt), () => `DEVICE TYPE UPDATED  •  ${code}  ${ot} → ${nt}`);
+});
+$('btnDevRem').onclick = () => queue(async () => {
+  const code = selDevice; if (!code) return showStatus('Select a device in Devices first.', true);
+  clearPendingDev();
+  if (!await confirmBox('Confirm device removal', `Remove device ${code}?\nIts history will be kept and the device can be restored.`)) return showStatus('Device removal cancelled.');
+  await run(d => C.archiveDevice(d, code), () => `DEVICE REMOVED  •  ${code}. Use RESTORE to reverse.`);
+});
+$('btnDevRes').onclick = () => queue(async () => {
+  const code = selDevice; if (!code) return showStatus('Select a device in Devices first.', true);
+  clearPendingDev(); await run(d => C.restoreDevice(d, code), () => `DEVICE RESTORED  •  ${code}`);
+});
+
+$('btnEmpUpd').onclick = () => queue(async () => {
+  const oldC = selEmployee, nc = $('editCode').value.trim(), nn = $('editName').value.trim();
+  if (!oldC) return showStatus('Select an employee in Employee Management first.', true);
+  if (!C.validCode(nc) || nn.length > 200 || C.hasControl(nn)) return showStatus('Invalid employee barcode or name.', true);
+  if (!pendingEmpUpdate || pendingEmpUpdate.o !== oldC || pendingEmpUpdate.c !== nc || pendingEmpUpdate.n !== nn) {
+    clearPendingEmp(); pendingEmpUpdate = { o: oldC, c: nc, n: nn }; $('btnEmpUpd').textContent = 'CONFIRM SAVE';
+    return showStatus(`CONFIRM EMPLOYEE EDIT  •  ${oldC} → ${nc}. Click CONFIRM SAVE again.`, true);
+  }
+  clearPendingEmp();
+  if (await run(d => C.updateEmployee(d, oldC, nc, nn), () => `EMPLOYEE UPDATED  •  ${oldC} → ${nc}`)) { selEmployee = nc; pendingEmployee = null; updateHint(); render(); }
+});
+$('btnEmpRem').onclick = () => queue(async () => {
+  const code = selEmployee; if (!code) return showStatus('Select an employee in Employee Management first.', true);
+  clearPendingEmp();
+  if (!await confirmBox('Confirm employee removal', `Remove employee ${code}?\nTheir handover history will be kept and the employee can be restored.`)) return showStatus('Employee removal cancelled.');
+  if (await run(d => C.archiveEmployee(d, code), () => `EMPLOYEE REMOVED  •  ${code}. Use RESTORE to reverse.`)) { pendingEmployee = null; updateHint(); }
+});
+$('btnEmpRes').onclick = () => queue(async () => {
+  const code = selEmployee; if (!code) return showStatus('Select an employee in Employee Management first.', true);
+  clearPendingEmp(); await run(d => C.restoreEmployee(d, code), () => `EMPLOYEE RESTORED  •  ${code}`);
+});
+
+// tabs / history
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('.tab'); if (!b) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t === b));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === b.dataset.v));
+});
+$('outDate').onchange = renderHistory; $('inDate').onchange = renderHistory;
+$('outToday').onclick = () => { $('outDate').value = C.todayAms(); renderHistory(); };
+$('inToday').onclick = () => { $('inDate').value = C.todayAms(); renderHistory(); };
+
+// files
+$('btnExcel').onclick = () => queue(async () => {
+  if (folderState === 'ok') {
+    try { await writeFile('Barcode_Scanner_Records.xlsx', C.buildXlsx(db)); lastExcelOk = true; showStatus('Excel updated in folder ' + dirHandle.name + '.'); }
+    catch (e) { lastExcelOk = false; showStatus('Excel could not be written. Close it in Excel and try again.', true); }
+    return;
+  }
+  showStatus(download('Barcode_Scanner_Records.xlsx', C.buildXlsx(db), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    ? 'Excel downloaded.' : 'Download is blocked here. Open the page as a normal browser tab.', false);
+});
+$('btnBackup').onclick = () => {
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  showStatus(download(`records-backup-${stamp}.json`, JSON.stringify(db, null, 2), 'application/json') ? 'Backup downloaded.' : 'Download is blocked here.');
+};
+$('btnImport').onclick = () => $('importFile').click();
+$('importFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  let next;
+  try { next = C.normalizeDb(JSON.parse(await f.text())); C.validate(next); }
+  catch (err) { return showStatus('Import failed: ' + err.message, true); }
+  if (!await confirmBox('Replace all data?', `Import "${f.name}"?\n${next.Employees.length} employees, ${next.Scanners.length} devices, ${next.Records.length} records.\n\nThis REPLACES the current data (${db.Records.length} records). Make a BACKUP JSON first if unsure.`, 'IMPORT')) return showStatus('Import cancelled.');
+  queue(async () => { pendingEmployee = null; selDevice = selEmployee = null; updateHint(); await run(d => { Object.assign(d, next); }, () => `IMPORTED  •  ${f.name}`); });
+};
+$('btnFull').onclick = async () => {
+  try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); }
+  catch (e) { showStatus('Full screen is not available here. Press F11.', true); }
+};
+document.addEventListener('fullscreenchange', () => { $('btnFull').textContent = document.fullscreenElement ? 'EXIT FULL SCREEN' : 'FULL SCREEN'; });
+
+// folder connect / reconnect
+async function adoptFolder(handle, fromPicker) {
+  dirHandle = handle;
+  try { await kvSet('dir', handle); } catch (e) {}
+  const text = await readFolderJson();
+  let fileDb = null;
+  if (text !== null) {
+    try { fileDb = C.normalizeDb(JSON.parse(text)); C.validate(fileDb); }
+    catch (e) { folderState = 'none'; dirHandle = null; updateStoreBadge(); showStatus('records.json in this folder is not valid (' + e.message + '). It was NOT changed. Choose another folder or fix the file.', true); return; }
+  }
+  const dirty = await kvGet('folderDirty').catch(() => false);
+  const browserHas = db.Records.length + db.Employees.length + db.Scanners.length > 0;
+  const same = fileDb && JSON.stringify(fileDb) === JSON.stringify(db);
+  let useFile;
+  if (!fileDb) useFile = false;
+  else if (!browserHas || same) useFile = true;
+  else if (!fromPicker && !dirty) useFile = true;     // reopening: the folder file is the source of truth
+  else {
+    useFile = await modal('Which data should be used?',
+      `The folder already has records.json (${fileDb.Records.length} records, ${fileDb.Employees.length} employees).\nThis browser has ${db.Records.length} records, ${db.Employees.length} employees${dirty ? ' (with changes not yet written to the folder)' : ''}.\n\nThe one you do not choose is kept as records.json.bak.`,
+      [{ label: 'USE BROWSER DATA', value: false }, { label: 'USE FOLDER FILE', value: true, cls: 'primary' }]);
+  }
+  folderState = 'ok';
+  if (useFile) {
+    db = fileDb;
+    try { await kvSet('db', JSON.stringify(db)); } catch (e) {}
+    try { await writeFile('Barcode_Scanner_Records.xlsx', C.buildXlsx(db)); lastExcelOk = true; } catch (e) { lastExcelOk = false; }
+  } else {
+    try { await writeFolder(db); } catch (e) { folderState = 'needsPermission'; }
+  }
+  await kvSet('folderDirty', false).catch(() => {});
+  pendingEmployee = null; updateHint(); render(); updateStoreBadge();
+  showStatus(folderState === 'ok' ? `FOLDER CONNECTED  •  ${handle.name}. records.json and Excel are saved here.` : 'Folder could not be written.', folderState !== 'ok');
+}
+$('btnFolder').onclick = async () => {
+  if (!fsSupported) return showStatus('Folder saving needs Microsoft Edge or Google Chrome.', true);
+  try {
+    if (folderState === 'needsPermission' && dirHandle) {
+      const p = await dirHandle.requestPermission({ mode: 'readwrite' });
+      if (p === 'granted') return queue(() => adoptFolder(dirHandle, false));
+      return showStatus('Permission was not given.', true);
+    }
+    // Pick "Documents" (or any folder): the app creates/uses the "Barcode Scanner Records" folder inside it.
+    let h = await window.showDirectoryPicker({ id: 'equipment-records', mode: 'readwrite', startIn: 'documents' });
+    if (h.name !== RECORDS_FOLDER) h = await h.getDirectoryHandle(RECORDS_FOLDER, { create: true });
+    queue(() => adoptFolder(h, true));
+  } catch (e) {
+    if (e && e.name === 'AbortError') return focusScan();
+    showStatus('Folder access is blocked here (' + (e.name || 'error') + '). Open the page as a normal browser tab.', true);
+  }
+};
+
+// a USB scanner types like a keyboard: route stray keystrokes into the scan box
+document.addEventListener('keydown', e => {
+  if ($('modalBg').classList.contains('on')) return;
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(tag)) return;
+  if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) $('scan').focus();
+});
+
+// ---------------- start ----------------
+(async function start() {
+  $('outDate').value = $('inDate').value = C.todayAms();
+  try {
+    const saved = await kvGet('db');
+    if (saved) { const n = C.normalizeDb(JSON.parse(saved)); C.validate(n); db = n; }
+  } catch (e) { console.warn('Browser copy could not be read', e); }
+  try { await kvSet('probe', 1); idbOk = true; } catch (e) { idbOk = false; }
+  if (idbOk && fsSupported) {
+    try {
+      const h = await kvGet('dir');
+      if (h) {
+        dirHandle = h;
+        const p = await h.queryPermission({ mode: 'readwrite' });
+        if (p === 'granted') await adoptFolder(h, false); else folderState = 'needsPermission';
+      }
+    } catch (e) { console.warn(e); }
+  }
+  updateHint(); render(); updateStoreBadge();
+  if (folderState === 'needsPermission') showStatus('Click RECONNECT FOLDER once to continue saving to ' + dirHandle.name + '.', true);
+  else if (folderState !== 'ok') showStatus(fsSupported ? 'READY. Click CONNECT FOLDER and choose Documents: the app creates "Barcode Scanner Records" there for records.json and Excel.' : 'READY.');
+  else if (!$('status').textContent) showStatus('READY.');
+  setInterval(() => { const t = C.todayAms(); if ($('today').textContent !== 'Today  •  ' + t) render(); }, 60000);
+  focusScan();
+})();
+})();
+</script>
+</body>
+</html>
